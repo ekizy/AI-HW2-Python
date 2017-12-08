@@ -5,42 +5,8 @@ from simpleai.search import backtrack,MOST_CONSTRAINED_VARIABLE,LEAST_CONSTRAINI
 class PickPix(object):
     def __init__(self):
 
-        '''variables = ('A', 'B', 'C')
-
-        domains = {
-            'A': [1, 2, 3],
-            'B': [1, 3],
-            'C': [1, 2],
-        }
-
-        # a constraint that expects different variables to have different values
-        def const_different(variables, values):
-            print ('b')
-            return len(values) == len(set(values))  # remove repeated values and count
-
-        # a constraint that expects one variable to be bigger than other
-        def const_one_bigger_other(variables, values):
-            print ('a')
-            return values[0] > values[1]
-
-        # a constraint thet expects two variables to be one odd and the other even,
-        # no matter which one is which type
-        def const_one_odd_one_even(variables, values):
-            print ('c')
-            if values[0] % 2 == 0:
-                return values[1] % 2 == 1  # first even, expect second to be odd
-            else:
-                return values[1] % 2 == 0  # first odd, expect second to be even
-
-        constraints = [
-            (('A', 'B', 'C'), const_different),
-            (('A', 'C'), const_one_bigger_other),
-            (('A', 'C'), const_one_odd_one_even),
-        ]
-
-        my_problem = CspProblem(variables, domains, constraints)
-
-        result = backtrack(my_problem)'''
+        self.countColumn = 0
+        self.countRow = 0
 
         self.numberOfColumns = None  # equals to row size
         self.numberOfRows = None # equals to column size
@@ -61,12 +27,33 @@ class PickPix(object):
         self.constraints = []
         self.readConstraintsFromFile()
 
-        #self.initializeEmptyRowsAndColumns()
         self.initializeVariables()
         self.variablesTuple = tuple(self.variables)
 
+        self.cellDomains = None
+        self.cellConstraints = None
 
-        self.makeRowDomain(0,[])
+        self.cellVariables = self.initializeCellVariables()
+        self.cellVariablesTuple = tuple(self.cellVariables)
+        self.initializeCellVariableDomains()
+        self.initializeDimensionConstraints()
+
+        print (self.cellVariablesTuple)
+        print(self.cellDomains)
+        print(self.cellConstraints)
+
+        self.cellVariablesTuple, self.cellDomains, self.cellConstraints = convert_to_binary(self.cellVariablesTuple, self.cellDomains,
+                                                                                self.cellConstraints)
+
+        problem = CspProblem(self.cellVariablesTuple,self.cellDomains,self.cellConstraints)
+
+        result = backtrack(problem,variable_heuristic=MOST_CONSTRAINED_VARIABLE,
+                   value_heuristic=LEAST_CONSTRAINING_VALUE)
+
+        print (result)
+
+
+        '''self.makeRowDomain(0,[])
         self.makeColumnDomain(0,[])
 
         self.rows = self.getRows()
@@ -76,34 +63,25 @@ class PickPix(object):
         self.columnsTuple = tuple(self.columns)
 
         self.initializeDomains()
-        #self.initializeConstraints()
+        self.initializeConstraints()
 
+        #print(self.variablesTuple)
+        #print(self.domains)
+        #print(self.constraints)'''
 
+        '''self.variablesTuple,self.domains,self.constraints = convert_to_binary(self.variablesTuple,self.domains,self.constraints)
 
+        problem = CspProblem(self.variablesTuple,self.domains,self.constraints)
 
-        print(self.variablesTuple)
-        print(self.domains)
-        #print(self.constraints)
+        result = backtrack(problem,variable_heuristic=MOST_CONSTRAINED_VARIABLE,
+                   value_heuristic=LEAST_CONSTRAINING_VALUE)
 
-        #rows tuple ve columns tuple ver
-
-        self.constraints1 = [
-            (self.variablesTuple, self.clueConstraint),
-            (self.variablesTuple,self.rowColumnConsistency)
-        ]
-
-
-        #self.variablesTuple,self.domains,self.constraints1 = convert_to_binary(self.variablesTuple,self.domains,self.constraints1)
-
-        problem = CspProblem(self.variablesTuple,self.domains,self.constraints1)
-
-        result = backtrack(problem)
-
-        print (result)
+        print (result)'''
 
 
 
     def solve(self):
+        print ('asd')
         return
     def const_row(self,variables,values):
         return
@@ -132,13 +110,26 @@ class PickPix(object):
 
         self.variables = variablesString.split(',')
 
-    def initializeEmptyRowsAndColumns(self):
-        self.rows = []
-        self.columns = []
+
+    def initializeCellVariables(self):
+        variableString = ''
         for rowIndex in range(0,self.numberOfRows):
-            self.rows.append([])
-        for columnIndex in range(0,self.numberOfColumns):
-            self.columns.append([])
+            for columnIndex in range(0,self.numberOfColumns):
+                variableString = variableString + 'Cell' +str(rowIndex)+str(columnIndex)
+                if columnIndex != self.numberOfColumns - 1 or rowIndex != self.numberOfRows -1:
+                    variableString = variableString + ','
+
+        return variableString.split(',')
+
+    def initializeCellVariableDomains(self):
+
+        allVariables = self.cellVariables
+        domainDictionary = {}
+        for index in range(0,len(allVariables)):
+            variableName = allVariables[index]
+            elementDomain = [0,1]
+            domainDictionary[variableName] = elementDomain
+        self.cellDomains = domainDictionary
 
 
     def initializeDomains(self):
@@ -197,9 +188,33 @@ class PickPix(object):
 
         return columnsString.split(',')
 
-    '''def initializeConstraints(self):
+    def initializeDimensionConstraints(self):
         constraintList = []
-        constraintList.append((self.variablesTuple,self.rowColumnConsistency))
+
+        for rowIndex in range(0,self.numberOfRows):
+            row = []
+            for index in range(0,len(self.cellVariables)):
+                number = self.parseRowIndexFromCell(self.cellVariables[index])
+                if number == rowIndex:
+                    row.append(self.cellVariables[index])
+            rowTuple = tuple(row)
+            constraintList.append((rowTuple,self.clueConstraint))
+
+        for columnIndex in range(0,self.numberOfColumns):
+            column = []
+            for index in range(0,len(self.cellVariables)):
+                number = self.parseColumnIndexFromCell(self.cellVariables[index])
+                if number == columnIndex:
+                    column.append(self.cellVariables[index])
+            columnTuple = tuple(column)
+            constraintList.append((columnTuple,self.clueConstraint))
+
+            self.cellConstraints = constraintList
+
+        return
+    def initializeConstraints(self):
+        constraintList = []
+        #constraintList.append((self.variablesTuple,self.rowColumnConsistency))
         
         for i in range(0,self.numberOfRows):
             tupleRow = (self.rows[i],)
@@ -209,17 +224,11 @@ class PickPix(object):
             tupleColumn = (self.columns[j],)
             constraintList.append((tupleColumn,self.columnClueConstraint))
 
-        rowsTuple = tuple(self.rows)
-        constraintList.append((rowsTuple, self.rowClueConstraint))
-        columnsTuple = tuple(self.columns)
-        constraintList.append((columnsTuple, self.columnClueConstraint))
-
         self.constraints = constraintList
-        return'''
+        return
 
     def rowColumnConsistency(self,variables,values):
 
-        print('b')
         rowValues = []
         columnValues = []
 
@@ -237,8 +246,8 @@ class PickPix(object):
                     return False
         return True
 
-    def rowClueConstraint(self,variables,values):
 
+    def rowClueConstraint(self,variables,values):
 
         for elementIndex in range(0,len(variables)):
 
@@ -270,8 +279,9 @@ class PickPix(object):
 
             isLastBlock = False
 
+            index = 0
 
-            for index in range(0,rowSize):
+            while index < rowSize:
                 lengthOfCurrentBlock = rowClue[blockIndex]
                 cellValue = rowValues[index]
 
@@ -279,7 +289,7 @@ class PickPix(object):
                     if blockIndex == numberOfBlocks - 1:
                         isLastBlock = True
 
-                    for j in range(0,lengthOfCurrentBlock):
+                    for j in range(0,lengthOfCurrentBlock - 1):
                         index+=1
                         if(index >= rowSize):
                             return False
@@ -295,14 +305,29 @@ class PickPix(object):
 
                     blockIndex+=1
 
+                if isLastBlock == True:
 
+                    if index<rowSize - 1:
+
+                        for k in range(index+1,rowSize):
+                            cellValue = rowValues[k]
+                            if cellValue == 1:
+                                return False
+                        print(number,rowValues,rowClue)
+                        return True
+
+                    else:
+                        print (number,rowValues,rowClue)
+                        return True
+
+                index = index + 1
+        print(number,rowValues,rowClue)
         return True
 
     def columnClueConstraint(self,variables,values):
 
         for elementIndex in range(0,len(variables)):
 
-            print(" col")
             number = self.parseNumberFromVariable(variables[elementIndex])
 
             columnSize = self.numberOfRows
@@ -330,8 +355,9 @@ class PickPix(object):
             if realBlackCells != blackCellNumber:
                 return False
 
+            index = 0
 
-            for index in range(0,columnSize):
+            while index < columnSize:
                 lengthOfCurrentBlock = columnClue[blockIndex]
                 cellValue = columnValues[index]
 
@@ -339,7 +365,7 @@ class PickPix(object):
                     if blockIndex == numberOfBlocks - 1:
                         isLastBlock = True
 
-                    for j in range(0,lengthOfCurrentBlock):
+                    for j in range(0,lengthOfCurrentBlock -1 ):
                         index+=1
                         if(index >= columnSize):
                             return False
@@ -355,82 +381,130 @@ class PickPix(object):
 
                     blockIndex+=1
 
+                if isLastBlock == True:
 
+                    if index < columnSize - 1:
+
+                        for k in range(index+1, columnSize):
+                            cellValue = columnValues[k]
+                            if cellValue == 1:
+                                return False
+                        print(number,columnValues,columnClue)
+                        return True
+
+                    else:
+                        print(number,columnValues,columnClue)
+                        return True
+                index = index + 1
+
+        print(number, columnValues, columnClue)
         return True
 
     def clueConstraint(self,variables,values):
 
-        print('a')
-        for elementIndex in range(0,len(variables)):
+        isRow = False
+        if self.parseRowIndexFromCell(variables[0]) == self.parseRowIndexFromCell(variables[1]):
+            isRow = True
 
-            number = self.parseNumberFromVariable(variables[elementIndex])
+        dimensionIndex = None
+        size = None
+        clue = None
 
-            size = self.numberOfColumns
+        if isRow == True:
+            dimensionIndex = self.parseRowIndexFromCell(variables[0])
+            clue = self.rowConstraints[dimensionIndex]
+            size = self.numberOfColumns # row size = number of columns
+        else:
+            dimensionIndex = self.parseColumnIndexFromCell(variables[0])
+            clue = self.columnConstraints[dimensionIndex]
+            size = self.numberOfRows # column size = number of rows
 
-            clue = None
+        numberOfBlocks = len(clue)
 
-            if 'Row' in variables[elementIndex]:
-                clue = self.rowConstraints[number]
-            else:
-                clue = self.columnConstraints[number]
+        blackCellNumber = 0
 
-            dimensionValues = values[elementIndex]
+        for num in range(0, len(clue)):
+            blackCellNumber = blackCellNumber + clue[num]
 
-            numberOfBlocks = len(clue)
+        realBlackCells = 0
 
-            blackCellNumber = 0
+        for num in range(0, len(values)):
+            if values[num] == 1:
+                realBlackCells += 1
 
-            for num in range(0,len(clue)):
-                blackCellNumber = blackCellNumber + clue[num]
+        if realBlackCells != blackCellNumber:
+            return False
 
-            realBlackCells = 0
+        blockIndex = 0
 
-            for num in range(0,len(dimensionValues)):
-                if dimensionValues[num] == 1:
-                    realBlackCells +=1
+        isLastBlock = False
 
-            if realBlackCells != blackCellNumber:
-                return False
+        index = 0
 
-            blockIndex = 0
+        while index < size:
+            lengthOfCurrentBlock = clue[blockIndex]
+            cellValue = values[index]
 
-            isLastBlock = False
+            if cellValue == 1:
+                if blockIndex == numberOfBlocks - 1:
+                    isLastBlock = True
 
+                for j in range(0, lengthOfCurrentBlock - 1):
+                    index += 1
+                    if (index >= size):
+                        return False
+                    cellValue = values[index]
+                    if cellValue == 0:
+                        return False
 
-            for index in range(0,size):
-                lengthOfCurrentBlock = dimensionValues[blockIndex]
-                cellValue = dimensionValues[index]
+                if isLastBlock == False and index < size - 1:
+                    index += 1
+                    cellValue = values[index]
+                    if cellValue == 1:
+                        return False
 
-                if cellValue == 1:
-                    if blockIndex == numberOfBlocks - 1:
-                        isLastBlock = True
+                blockIndex += 1
 
-                    for j in range(0,lengthOfCurrentBlock):
-                        index+=1
-                        if(index >= size):
-                            return False
-                        cellValue = dimensionValues[index]
-                        if cellValue == 0:
-                            return False
+            if isLastBlock == True:
 
-                    if isLastBlock == False and index < size-1:
-                        index+= 1
-                        cellValue = size[index]
+                if index < size - 1:
+
+                    for k in range(index + 1, size):
+                        cellValue = values[k]
                         if cellValue == 1:
                             return False
+                    print(dimensionIndex, values, clue)
+                    return True
 
-                    blockIndex+=1
+                else:
+                    print (dimensionIndex, values, clue)
+                    return True
 
+            index = index + 1
 
+        print(dimensionIndex, dimensionIndex, clue)
         return True
-
 
     def parseNumberFromVariable(self,variable):
         if 'Row' in variable:
-            number = int (variable[4]) - 1
+            if('Row 10' in variable or 'Column 10' in variable):
+                number = 9
+            else:
+                number = int (variable[4]) - 1
         else:
-            number = int (variable[7]) - 1
+            if('Column 10' in variable):
+                number = 9
+            else:
+                number = int (variable[7]) - 1
         return number
+
+    def parseRowIndexFromCell(self,variable):
+        index = int(variable[4])
+        return index
+
+    def parseColumnIndexFromCell(self,variable):
+        index = int(variable[5])
+        return index
 
 
 
