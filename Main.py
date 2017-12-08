@@ -5,18 +5,15 @@ from simpleai.search import backtrack,MOST_CONSTRAINED_VARIABLE,LEAST_CONSTRAINI
 class PickPix(object):
     def __init__(self):
 
-        self.countColumn = 0
-        self.countRow = 0
-
         self.numberOfColumns = None  # equals to row size
         self.numberOfRows = None # equals to column size
 
         self.rowConstraints = []
         self.columnConstraints = []
 
-        self.constraints = []
         self.readConstraintsFromFile()
 
+        self.cellVariablesTuple = None
         self.cellDomains = None
         self.cellConstraints = None
 
@@ -25,9 +22,20 @@ class PickPix(object):
         self.initializeCellVariableDomains()
         self.initializeDimensionConstraints()
 
-        print (self.cellVariablesTuple)
-        print(self.cellDomains)
-        print(self.cellConstraints)
+        print 'Variables =', self.cellVariablesTuple
+        print
+        print 'Domains = ', self.cellDomains
+        print
+        print 'Constraints =', self.cellConstraints
+        print
+        self.solution = None
+
+
+    def solve(self):
+
+        print 'Please wait while AI is solving the puzzle'
+        print
+        print
 
         self.cellVariablesTuple, self.cellDomains, self.cellConstraints = convert_to_binary(self.cellVariablesTuple, self.cellDomains,
                                                                                 self.cellConstraints)
@@ -37,28 +45,29 @@ class PickPix(object):
         '''result = backtrack(problem,variable_heuristic=MOST_CONSTRAINED_VARIABLE,
                    value_heuristic=LEAST_CONSTRAINING_VALUE)'''
 
-        result = backtrack(problem)
+        self.solution = backtrack(problem)
+        self.printSolution()
 
-        print (result)
-
-
-    def solve(self):
-        print ('asd')
         return
+
     def readConstraintsFromFile(self):
+
         input_file = open('example_input.txt', 'r')
         self.numberOfRows = int(input_file.readline())
+
         for rowIndex in range(0,self.numberOfRows):
             line = input_file.readline().strip()
             currentRowConstraint = [int(i) for i in line.split(" ")]
             self.rowConstraints.append(currentRowConstraint)
         self.numberOfColumns = int(input_file.readline())
+
         for columnIndex in range(0,self.numberOfColumns):
             line = input_file.readline().strip()
             currentColumnConstraint = [int(j) for j in line.split(" ")]
             self.columnConstraints.append(currentColumnConstraint)
 
     def initializeCellVariables(self):
+
         variableString = ''
         for rowIndex in range(0,self.numberOfRows):
             for columnIndex in range(0,self.numberOfColumns):
@@ -177,16 +186,16 @@ class PickPix(object):
                         cellValue = values[k]
                         if cellValue == 1:
                             return False
-                    print(dimensionIndex, values, clue)
+                    #print(dimensionIndex, values, clue)
                     return True
 
                 else:
-                    print (dimensionIndex, values, clue)
+                    #print (dimensionIndex, values, clue)
                     return True
 
             index = index + 1
 
-        print(dimensionIndex, dimensionIndex, clue)
+        #print(dimensionIndex, dimensionIndex, clue)
         return True
 
     def parseRowIndexFromCell(self,variable):
@@ -197,8 +206,19 @@ class PickPix(object):
         index = int(variable[5])
         return index
 
+    def printSolution(self):
 
-
+        for rowIndex in range (0,self.numberOfRows):
+            for columnIndex in range(0,self.numberOfColumns):
+                valueKey = 'Cell' + str(rowIndex) + str(columnIndex)
+                value = self.solution[valueKey]
+                if(value == 1):
+                    cellCharacter ='#'
+                else:
+                    cellCharacter = ' '
+                print cellCharacter,
+            print
+        return
 
 if __name__ == '__main__':
     PickPix().solve()
